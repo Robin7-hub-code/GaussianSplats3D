@@ -34,7 +34,7 @@
       padding: 15px;
       border-radius: 5px;
       z-index: 1000;
-      max-width: 300px;
+      max-width: 350px;
     }
 
     #info h3 {
@@ -74,6 +74,17 @@
     <p style="font-size: 11px; margin-top: 10px;">
       Use the GUI controls to adjust shadow light direction, and cup position/scale. The DirectionalLight follows the shadow light direction.
     </p>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">🟡 Yellow Arrow Explanation:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>起点 (Start Point):</strong> 场景中心 (0, 0, 0)<br>
+        <strong>终点 (End Point):</strong> 指向光源位置<br>
+        <strong>含义 (Meaning):</strong> 箭头显示光从哪个方向照射过来
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        The arrow shows the direction light comes from. It starts at scene center (0,0,0) and points toward the light source position.
+      </p>
+    </div>
   </div>
 
   <script type="module">
