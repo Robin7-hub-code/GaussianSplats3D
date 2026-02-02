@@ -87,6 +87,7 @@
     let pcssEnabled = false;
     let cupMesh = null;
     let directionalLight = null;
+    let lightDirectionHelper = null; // Arrow helper to visualize light direction
     let gui = null;
     let splatScenePath = null; // Store the splat scene path to avoid reloading
     let splatSceneOptions = null; // Store the splat scene options
@@ -117,6 +118,9 @@
       directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
       updateDirectionalLight();
       threeScene.add(directionalLight);
+      
+      // Add arrow helper to visualize light direction
+      createLightDirectionHelper(threeScene);
 
       // Load the cup OBJ model
       const objLoader = new OBJLoader();
@@ -162,6 +166,38 @@
       return threeScene;
     }
     
+    function createLightDirectionHelper(threeScene) {
+      // Create an arrow helper to visualize the light direction
+      // The arrow points in the direction of the light (where light is coming FROM)
+      const dir = new THREE.Vector3(
+        shadowParams.lightDirX,
+        shadowParams.lightDirY,
+        shadowParams.lightDirZ
+      ).normalize();
+      
+      const origin = new THREE.Vector3(0, 0, 0); // Start from scene center
+      const length = 6; // Length of the arrow
+      const color = 0xffff00; // Yellow color for visibility
+      const headLength = 0.8; // Length of arrow head
+      const headWidth = 0.5; // Width of arrow head
+      
+      lightDirectionHelper = new THREE.ArrowHelper(dir, origin, length, color, headLength, headWidth);
+      threeScene.add(lightDirectionHelper);
+    }
+    
+    function updateLightDirectionHelper() {
+      if (lightDirectionHelper) {
+        // Update the arrow direction to match the shadow light direction
+        const dir = new THREE.Vector3(
+          shadowParams.lightDirX,
+          shadowParams.lightDirY,
+          shadowParams.lightDirZ
+        ).normalize();
+        
+        lightDirectionHelper.setDirection(dir);
+      }
+    }
+    
     function updateDirectionalLight() {
       if (directionalLight) {
         // Normalize the direction vector
@@ -177,6 +213,9 @@
         );
         directionalLight.lookAt(0, 0, 0);
       }
+      
+      // Update the light direction helper arrow
+      updateLightDirectionHelper();
     }
     
     function updateCupTransform() {
