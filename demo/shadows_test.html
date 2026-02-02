@@ -72,7 +72,12 @@
     <button id="toggleShadows">Enable Shadows</button>
     <button id="togglePCSS">Enable PCSS</button>
     <p style="font-size: 11px; margin-top: 10px;">
-      Use the GUI controls to adjust shadow light direction, and cup position/scale. The DirectionalLight follows the shadow light direction.
+      <strong>⚠️ Important:</strong> Shadows are cast FROM THREE.js meshes (cup) ONTO Gaussian Splats (3DGS objects).
+      <br><br>
+      Without splat data loaded, the shadow system is working but there are no splats to receive the shadows. 
+      Please download the demo data to see shadows on splats!
+      <br><br>
+      Use the GUI controls to adjust shadow light direction and cup position/scale. The DirectionalLight follows the shadow light direction.
     </p>
     <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
       <h4 style="margin: 5px 0; font-size: 13px;">🟡 Yellow Arrow Explanation:</h4>
