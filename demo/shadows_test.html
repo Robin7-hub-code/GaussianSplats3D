@@ -123,17 +123,42 @@
         'shadowLightRadius': 0.02
       });
 
-      // Load a splat scene
+      // Try to load a splat scene with timeout
+      let splatLoaded = false;
       try {
-        await viewer.addSplatScene(getRootPath() + 'assets/data/bonsai/bonsai-7k.ksplat', {
+        // Add a timeout to handle missing files
+        const loadPromise = viewer.addSplatScene(getRootPath() + 'assets/data/bonsai/bonsai-7k.ksplat', {
           'position': [0, 0, 0],
           'rotation': [0, 0, 0, 1],
           'scale': [1.5, 1.5, 1.5]
         });
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Loading timeout - file may not exist')), 5000)
+        );
+        
+        await Promise.race([loadPromise, timeoutPromise]);
         console.log('Splat scene loaded successfully');
+        splatLoaded = true;
       } catch (error) {
         console.error('Error loading splat scene:', error);
+        // Show error message to user
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.8); color: white; padding: 20px; border-radius: 10px; text-align: center; z-index: 10000; max-width: 500px;';
+        errorDiv.innerHTML = `
+          <h2>⚠️ Data File Missing</h2>
+          <p>The splat scene file could not be loaded.</p>
+          <p style="font-size: 14px; margin-top: 10px;">To see splats, please download the demo data from:</p>
+          <p style="font-size: 12px;"><a href="https://projects.markkellogg.org/downloads/gaussian_splat_data.zip" style="color: #ffff00;">https://projects.markkellogg.org/downloads/gaussian_splat_data.zip</a></p>
+          <p style="font-size: 13px; margin-top: 5px;">Extract it to: <code style="background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 3px;">build/demo/assets/data/</code></p>
+          <p style="font-size: 13px; margin-top: 15px; color: #ffff88;">✓ You should still see the Three.js meshes (orange cube and blue sphere) below.</p>
+          <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+        `;
+        document.body.appendChild(errorDiv);
       }
+      
+      // Always start the viewer to show Three.js meshes even without splat data
+      viewer.start();
     }
 
     // Toggle shadow state
