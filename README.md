@@ -133,6 +133,37 @@ npm run build-windows
 
 **Note**: The build process creates a `build/demo/lib/` folder containing the compiled JavaScript libraries. For details on how this folder is created, see [lib文件夹创建说明.md](./lib文件夹创建说明.md) (Chinese) or the build scripts in `package.json`.
 
+### Troubleshooting Build Errors
+
+**Error: "Cannot find package '@rollup/plugin-terser'"**
+
+If you encounter this error:
+```
+Error: Cannot find package '@rollup/plugin-terser' imported from rollup.config.js
+```
+
+**Cause**: You likely ran the build command before installing dependencies.
+
+**Solution**:
+1. ⚠️ **You must run** `npm install` first to install all dependencies
+2. Wait for installation to complete (usually 1-3 minutes)
+3. Then run the build command:
+   - Windows: `npm run build-windows`
+   - Linux/Mac: `npm run build`
+
+**Complete steps**:
+```bash
+# Step 1: Install dependencies (required!)
+npm install
+
+# Step 2: Build the project
+npm run build-windows  # for Windows
+# or
+npm run build          # for Linux/Mac
+```
+
+### Running the Demo
+
 To view the demo scenes locally run
 ```
 npm run demo
