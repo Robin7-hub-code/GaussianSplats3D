@@ -130,6 +130,9 @@ For Windows I have added a Windows-compatible version of the build command:
 ```
 npm run build-windows
 ```
+
+**Note**: The build process creates a `build/demo/lib/` folder containing the compiled JavaScript libraries. For details on how this folder is created, see [lib文件夹创建说明.md](./lib文件夹创建说明.md) (Chinese) or the build scripts in `package.json`.
+
 To view the demo scenes locally run
 ```
 npm run demo
