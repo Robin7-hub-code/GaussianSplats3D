@@ -17,6 +17,7 @@ When I started, web-based viewers were already available -- A WebGL-based viewer
 - Viewer can import `.ply` files, `.splat` files, or my custom compressed `.ksplat` files
 - Users can convert `.ply` or `.splat` files to the `.ksplat` file format
 - Allows a Three.js scene or object group to be rendered along with the splats
+- **Shadow mapping support**: Meshes can cast shadows onto splats with PCF/PCSS (WebGL2 required)
 - Built-in WebXR support
 - Supports 1st and 2nd degree spherical harmonics for view-dependent effects
 - Focus on optimization:
@@ -346,6 +347,14 @@ Advanced `Viewer` parameters
 | `freeIntermediateSplatData` | When true, the intermediate splat data that is the result of decompressing splat bufffer(s) and used to populate data textures will be freed. This will reduces memory usage, but if that data needs to be modified it will need to be re-populated from the splat buffer(s). Defaults to `false`.
 | `splatRenderMode` | Determine which splat rendering mode to enable. Valid values are defined in the `SplatRenderMode` enum: `ThreeD` and `TwoD`. `ThreeD` is the original/traditional mode and `TwoD` is the new mode described here: https://surfsplatting.github.io/
 | `sceneFadeInRateMultiplier` | Customize the speed at which the scene is revealed. Default is 1.0.
+| `enableShadowsOnSplats` | Enable directional shadow mapping on splats (WebGL2 required). Allows meshes in `threeScene` to cast shadows onto splats. Default is `false`. See [SHADOW_MAPPING.md](SHADOW_MAPPING.md) for details.
+| `enablePCSSOnSplats` | Enable PCSS (Percentage-Closer Soft Shadows) for softer shadow edges. Only effective when `enableShadowsOnSplats` is `true`. Default is `false`.
+| `shadowMapResolution` | Resolution of the shadow map texture. Higher values improve shadow quality but reduce performance. Default is `1024`.
+| `shadowBias` | Depth bias to prevent shadow acne. Adjust if you see self-shadowing artifacts. Default is `0.001`.
+| `shadowLightDirection` | Direction vector `[x, y, z]` for the directional light. Automatically normalized. Default is `[0.5, -1.0, 0.5]`.
+| `shadowOrthoSize` | Size of the orthographic shadow camera frustum in world units. Default is `10`.
+| `shadowNearFar` | Near and far clip planes `[near, far]` for shadow camera. Default is `[0.1, 50]`.
+| `shadowLightRadius` | Area light radius in world units for PCSS penumbra calculation. Only used when `enablePCSSOnSplats` is `true`. Default is `0.01`.
 <br>
 
 ### Creating KSPLAT files
