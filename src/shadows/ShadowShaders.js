@@ -177,11 +177,11 @@ export class ShadowShaders {
     static getFragmentShaderCode(includePCSS = true) {
         let code = this.getFragmentShaderUniforms() + '\n';
         code += this.getPCFFunction() + '\n';
-        
+
         if (includePCSS) {
             code += this.getPCSSFunction() + '\n';
         }
-        
+
         return code;
     }
 

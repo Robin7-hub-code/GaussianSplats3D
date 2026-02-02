@@ -458,7 +458,7 @@ export class Viewer {
 
         // Check WebGL2 support
         this.shadowsSupported = ShadowUtils.isWebGL2Supported(this.renderer);
-        
+
         if (!this.shadowsSupported) {
             if (this.logLevel >= LogLevel.Warn) {
                 console.warn('Shadow mapping requires WebGL2 support. Shadows will be disabled.');
@@ -782,7 +782,7 @@ export class Viewer {
                 this.adjustForWebXRStereo(renderDimensions);
                 this.splatMesh.updateUniforms(renderDimensions, focalLengthX * focalAdjustment, focalLengthY * focalAdjustment,
                                               this.camera.isOrthographicCamera, this.camera.zoom || 1.0, inverseFocalAdjustment);
-                
+
                 // Update shadow camera and uniforms
                 this.updateShadowCamera();
                 this.updateSplatMeshShadowUniforms();
@@ -1604,14 +1604,14 @@ export class Viewer {
                 this.perspectiveControls = null;
             }
             this.controls = null;
-            
+
             // Dispose shadow resources
             if (this.shadowRenderTarget) {
                 this.shadowRenderTarget.dispose();
                 this.shadowRenderTarget = null;
             }
             this.shadowCamera = null;
-            
+
             if (this.splatMesh) {
                 this.splatMesh.dispose();
                 this.splatMesh = null;

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>3D Gaussian Splats - Shadow Mapping Test</title>
+  <script type="text/javascript" src="js/util.js"></script>
+  <script type="importmap">
+    {
+        "imports": {
+            "three": "./lib/three.module.js",
+            "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js"
+        }
+    }
+  </script>
+  <style>
+
+    body {
+      background-color: #222222;
+      height: 100vh;
+      margin: 0px;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 5px;
+      z-index: 1000;
+      max-width: 300px;
+    }
+
+    #info h3 {
+      margin-top: 0;
+    }
+
+    #info button {
+      margin: 5px 0;
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    #info button:hover {
+      background-color: #45a049;
+    }
+
+    #info .status {
+      margin: 5px 0;
+      font-size: 12px;
+    }
+
+  </style>
+
+</head>
+
+<body>
+  <div id="info">
+    <h3>Shadow Mapping Test</h3>
+    <div class="status">Shadow Enabled: <span id="shadowStatus">NO</span></div>
+    <div class="status">PCSS Enabled: <span id="pcssStatus">NO</span></div>
+    <button id="toggleShadows">Enable Shadows</button>
+    <button id="togglePCSS">Enable PCSS</button>
+    <p style="font-size: 11px; margin-top: 10px;">
+      This demo tests shadow mapping on splats. Mesh objects should cast shadows onto the splats.
+    </p>
+  </div>
+
+  <script type="module">
+    import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+    import * as THREE from 'three';
+
+    let viewer;
+    let shadowsEnabled = false;
+    let pcssEnabled = false;
+
+    function setupThreeScene() {
+      const threeScene = new THREE.Scene();
+
+      // Add a simple cube that will cast shadows
+      const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
+      const boxMaterial = new THREE.MeshBasicMaterial({color: 0xff8844});
+      const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+      threeScene.add(boxMesh);
+      boxMesh.position.set(0, 3, 0);
+
+      // Add another mesh
+      const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+      const sphereMaterial = new THREE.MeshBasicMaterial({color: 0x4488ff});
+      const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      threeScene.add(sphereMesh);
+      sphereMesh.position.set(3, 2, 1);
+
+      return threeScene;
+    }
+
+    async function init() {
+      // Create the THREE.js scene with meshes
+      const threeScene = setupThreeScene();
+
+      // Create viewer with shadow mapping enabled
+      viewer = new GaussianSplats3D.Viewer({
+        'cameraUp': [0, -1, 0],
+        'initialCameraPosition': [-1, -5, 6],
+        'initialCameraLookAt': [0, 0, 0],
+        'threeScene': threeScene,
+        'enableShadowsOnSplats': shadowsEnabled,
+        'enablePCSSOnSplats': pcssEnabled,
+        'shadowMapResolution': 1024,
+        'shadowBias': 0.0005,
+        'shadowLightDirection': [0.5, -1.0, 0.5],
+        'shadowOrthoSize': 10,
+        'shadowNearFar': [0.1, 50],
+        'shadowLightRadius': 0.02
+      });
+
+      // Load a splat scene
+      try {
+        await viewer.addSplatScene(getRootPath() + 'assets/data/bonsai/bonsai-7k.ksplat', {
+          'position': [0, 0, 0],
+          'rotation': [0, 0, 0, 1],
+          'scale': [1.5, 1.5, 1.5]
+        });
+        console.log('Splat scene loaded successfully');
+      } catch (error) {
+        console.error('Error loading splat scene:', error);
+      }
+    }
+
+    // Toggle shadow state
+    function toggleShadows() {
+      shadowsEnabled = !shadowsEnabled;
+      document.getElementById('shadowStatus').textContent = shadowsEnabled ? 'YES' : 'NO';
+      document.getElementById('toggleShadows').textContent = shadowsEnabled ? 'Disable Shadows' : 'Enable Shadows';
+
+      // Recreate viewer with new settings
+      if (viewer) {
+        viewer.dispose().then(() => {
+          init();
+        });
+      } else {
+        init();
+      }
+    }
+
+    function togglePCSS() {
+      pcssEnabled = !pcssEnabled;
+      document.getElementById('pcssStatus').textContent = pcssEnabled ? 'YES' : 'NO';
+      document.getElementById('togglePCSS').textContent = pcssEnabled ? 'Disable PCSS' : 'Enable PCSS';
+
+      // Recreate viewer with new settings
+      if (viewer) {
+        viewer.dispose().then(() => {
+          init();
+        });
+      } else {
+        init();
+      }
+    }
+
+    // Setup event listeners
+    document.getElementById('toggleShadows').addEventListener('click', toggleShadows);
+    document.getElementById('togglePCSS').addEventListener('click', togglePCSS);
+
+    // Initialize the demo
+    init();
+
+  </script>
+
+</body>
+
+</html>
