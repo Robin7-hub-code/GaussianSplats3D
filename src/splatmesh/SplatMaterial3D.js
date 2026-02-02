@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SplatMaterial } from './SplatMaterial.js';
+import { ShadowShaders } from '../shadows/ShadowShaders.js';
 
 export class SplatMaterial3D {
 
@@ -34,6 +35,10 @@ export class SplatMaterial3D {
                 first = vec4(r.x, r.y, g.x, g.y);
                 second = vec4(b.x, b.y, 0.0, 0.0);
             }
+            
+            // Shadow mapping
+            uniform mat4 shadowMatrixWorldToLight;
+            varying vec4 vShadowCoord;
         `;
 
         let vertexShaderSource = SplatMaterial.buildVertexShaderBase(dynamicMode, enableOptionalEffects,
@@ -58,6 +63,36 @@ export class SplatMaterial3D {
             'value': null
         };
         uniforms['covariancesAreHalfFloat'] = {
+            'type': 'i',
+            'value': 0
+        };
+
+        // Add shadow uniforms
+        uniforms['shadowMap'] = {
+            'type': 't',
+            'value': null
+        };
+        uniforms['shadowMatrixWorldToLight'] = {
+            'type': 'm4',
+            'value': new THREE.Matrix4()
+        };
+        uniforms['shadowMapSize'] = {
+            'type': 'v2',
+            'value': new THREE.Vector2(1024, 1024)
+        };
+        uniforms['shadowBias'] = {
+            'type': 'f',
+            'value': 0.001
+        };
+        uniforms['shadowNearFar'] = {
+            'type': 'v2',
+            'value': new THREE.Vector2(0.1, 50)
+        };
+        uniforms['shadowLightRadius'] = {
+            'type': 'f',
+            'value': 0.01
+        };
+        uniforms['enablePCSS'] = {
             'type': 'i',
             'value': 0
         };
@@ -211,6 +246,10 @@ export class SplatMaterial3D {
 
             // Scale the position data we send to the fragment shader
             vPosition *= sqrt8;
+            
+            // Calculate shadow coordinates
+            vec4 worldPos = modelMatrix * vec4(splatCenter, 1.0);
+            vShadowCoord = shadowMatrixWorldToLight * worldPos;
         `;
 
         vertexShaderSource += SplatMaterial.getVertexShaderFadeIn();
@@ -231,6 +270,9 @@ export class SplatMaterial3D {
             varying vec2 vPosition;
         `;
 
+        // Add shadow sampling functions
+        fragmentShaderSource += ShadowShaders.getFragmentShaderCode(true);
+
         fragmentShaderSource += `
             void main () {
                 // Compute the positional squared distance from the center of the splat to the current fragment.
@@ -247,7 +289,16 @@ export class SplatMaterial3D {
                 // and since 'mean' is zero, we have X * X, which is the same as A:
                 float opacity = exp(-0.5 * A) * vColor.a;
 
-                gl_FragColor = vec4(color.rgb, opacity);
+                // Apply shadow mapping if shadow map is available
+                if (shadowMap != null) {
+        `;
+        fragmentShaderSource += ShadowShaders.getFragmentShaderShadowCalc();
+        fragmentShaderSource += `
+                    // Darken the splat based on shadow factor
+                    color = color * mix(0.3, 1.0, shadowFactor);
+                }
+
+                gl_FragColor = vec4(color, opacity);
             }
         `;
 
