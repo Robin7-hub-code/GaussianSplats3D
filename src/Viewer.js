@@ -211,15 +211,24 @@ export class Viewer {
         this.splatSortDistanceMapPrecision = clamp(this.splatSortDistanceMapPrecision, 10, maxPrecision);
 
         // Shadow mapping configuration
+        // Requires WebGL2 support. When enabled, meshes in threeScene will cast shadows onto splats.
+        // enableShadowsOnSplats: Enable directional shadow mapping (default: false)
         this.enableShadowsOnSplats = options.enableShadowsOnSplats || false;
+        // enablePCSSOnSplats: Enable PCSS (Percentage-Closer Soft Shadows) for softer shadow edges (default: false)
         this.enablePCSSOnSplats = options.enablePCSSOnSplats || false;
+        // shadowMapResolution: Resolution of the shadow map texture (default: 1024)
         this.shadowMapResolution = options.shadowMapResolution || 1024;
+        // shadowBias: Depth bias to prevent shadow acne (default: 0.001)
         this.shadowBias = (options.shadowBias !== undefined) ? options.shadowBias : 0.001;
+        // shadowLightDirection: Direction vector for the directional light (default: [0.5, -1.0, 0.5])
         if (!options.shadowLightDirection) options.shadowLightDirection = [0.5, -1.0, 0.5];
         this.shadowLightDirection = new THREE.Vector3().fromArray(options.shadowLightDirection).normalize();
+        // shadowOrthoSize: Size of the orthographic shadow camera frustum (default: 10)
         this.shadowOrthoSize = options.shadowOrthoSize || 10;
+        // shadowNearFar: Near and far clip planes for shadow camera (default: [0.1, 50])
         if (!options.shadowNearFar) options.shadowNearFar = [0.1, 50];
         this.shadowNearFar = options.shadowNearFar;
+        // shadowLightRadius: Area light radius in world units for PCSS penumbra calculation (default: 0.01)
         this.shadowLightRadius = options.shadowLightRadius || 0.01;
 
         // Shadow system state
@@ -453,6 +462,11 @@ export class Viewer {
         }
     }
 
+    /**
+     * Initialize shadow mapping system.
+     * Creates shadow render target and camera if shadows are enabled.
+     * Checks for WebGL2 support and disables shadows if unavailable.
+     */
     setupShadows() {
         if (!this.enableShadowsOnSplats) return;
 
@@ -478,6 +492,10 @@ export class Viewer {
         }
     }
 
+    /**
+     * Update shadow camera position and compute light view-projection matrix.
+     * Called each frame when shadows are enabled.
+     */
     updateShadowCamera() {
         if (!this.enableShadowsOnSplats || !this.shadowCamera) return;
 
@@ -498,6 +516,10 @@ export class Viewer {
         this.shadowLightViewProjMatrix = ShadowUtils.computeLightViewProjectionMatrix(this.shadowCamera);
     }
 
+    /**
+     * Render the depth pass for shadow mapping.
+     * Renders meshes from threeScene (excluding splat mesh) into the shadow map.
+     */
     renderShadowDepthPass() {
         if (!this.enableShadowsOnSplats || !this.shadowCamera || !this.shadowRenderTarget) return;
 
@@ -511,6 +533,10 @@ export class Viewer {
         );
     }
 
+    /**
+     * Update shadow-related uniforms on the splat mesh material.
+     * Sets shadow map texture, matrices, and configuration parameters.
+     */
     updateSplatMeshShadowUniforms() {
         if (!this.enableShadowsOnSplats || !this.splatMesh || !this.shadowRenderTarget) return;
 
@@ -518,6 +544,9 @@ export class Viewer {
         if (!material || !material.uniforms) return;
 
         // Update shadow-related uniforms
+        if (material.uniforms.enableShadows) {
+            material.uniforms.enableShadows.value = 1;
+        }
         if (material.uniforms.shadowMap) {
             material.uniforms.shadowMap.value = this.shadowRenderTarget.texture;
         }

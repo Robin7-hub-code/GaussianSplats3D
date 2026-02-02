@@ -76,6 +76,10 @@ export class SplatMaterial2D {
             'type': 'i',
             'value': 0
         };
+        uniforms['enableShadows'] = {
+            'type': 'i',
+            'value': 0
+        };
 
         const material = new THREE.ShaderMaterial({
             uniforms: uniforms,
@@ -387,8 +391,8 @@ export class SplatMaterial2D {
                 float w = alpha * T;
                 vec3 color = vColor.rgb;
 
-                // Apply shadow mapping if shadow map is available
-                if (shadowMap != null) {
+                // Apply shadow mapping if enabled
+                if (enableShadows == 1) {
         `;
         fragmentShaderSource += ShadowShaders.getFragmentShaderShadowCalc();
         fragmentShaderSource += `

@@ -96,6 +96,10 @@ export class SplatMaterial3D {
             'type': 'i',
             'value': 0
         };
+        uniforms['enableShadows'] = {
+            'type': 'i',
+            'value': 0
+        };
 
         const material = new THREE.ShaderMaterial({
             uniforms: uniforms,
@@ -289,8 +293,8 @@ export class SplatMaterial3D {
                 // and since 'mean' is zero, we have X * X, which is the same as A:
                 float opacity = exp(-0.5 * A) * vColor.a;
 
-                // Apply shadow mapping if shadow map is available
-                if (shadowMap != null) {
+                // Apply shadow mapping if enabled
+                if (enableShadows == 1) {
         `;
         fragmentShaderSource += ShadowShaders.getFragmentShaderShadowCalc();
         fragmentShaderSource += `

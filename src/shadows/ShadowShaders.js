@@ -40,6 +40,7 @@ export class ShadowShaders {
             uniform vec2 shadowNearFar;
             uniform float shadowLightRadius;
             uniform int enablePCSS;
+            uniform int enableShadows;
             varying vec4 vShadowCoord;
         `;
     }
