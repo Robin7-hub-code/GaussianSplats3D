@@ -88,6 +88,8 @@
     let cupMesh = null;
     let directionalLight = null;
     let gui = null;
+    let splatScenePath = null; // Store the splat scene path to avoid reloading
+    let splatSceneOptions = null; // Store the splat scene options
     
     // Shadow light parameters
     const shadowParams = {
@@ -194,21 +196,21 @@
       const lightFolder = gui.addFolder('Shadow Light Direction');
       lightFolder.add(shadowParams, 'lightDirX', -2, 2, 0.1)
         .name('Direction X')
-        .onChange(() => {
+        .onChange(async () => {
           updateDirectionalLight();
-          recreateViewer();
+          await recreateViewer();
         });
       lightFolder.add(shadowParams, 'lightDirY', -2, 2, 0.1)
         .name('Direction Y')
-        .onChange(() => {
+        .onChange(async () => {
           updateDirectionalLight();
-          recreateViewer();
+          await recreateViewer();
         });
       lightFolder.add(shadowParams, 'lightDirZ', -2, 2, 0.1)
         .name('Direction Z')
-        .onChange(() => {
+        .onChange(async () => {
           updateDirectionalLight();
-          recreateViewer();
+          await recreateViewer();
         });
       lightFolder.open();
       
@@ -247,74 +249,91 @@
         'shadowMapResolution': 1024,
         'shadowBias': 0.0005,
         'shadowLightDirection': [shadowParams.lightDirX, shadowParams.lightDirY, shadowParams.lightDirZ],
-        'shadowOrthoSize': 10,
+        'shadowOrthoSize': 15,  // Increased to cover larger area when cup moves
         'shadowNearFar': [0.1, 50],
-        'shadowLightRadius': 0.02
+        'shadowLightRadius': 0.15  // Increased for more visible PCSS effect
       });
 
-      // Try to load a splat scene with timeout
-      let splatLoaded = false;
-      try {
-        // Add a timeout to handle missing files
-        const loadPromise = viewer.addSplatScene(getRootPath() + 'assets/data/bonsai/bonsai-7k.ksplat', {
+      // Try to load a splat scene with timeout (only on first init)
+      if (splatScenePath === null) {
+        splatScenePath = getRootPath() + 'assets/data/bonsai/bonsai-7k.ksplat';
+        splatSceneOptions = {
           'position': [0, 0, 0],
           'rotation': [0, 0, 0, 1],
           'scale': [1.5, 1.5, 1.5]
-        });
+        };
         
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Loading timeout - file may not exist')), 5000)
-        );
-        
-        await Promise.race([loadPromise, timeoutPromise]);
-        console.log('Splat scene loaded successfully');
-        splatLoaded = true;
-      } catch (error) {
-        console.error('Error loading splat scene:', error);
-        // Show error message to user
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.8); color: white; padding: 20px; border-radius: 10px; text-align: center; z-index: 10000; max-width: 500px;';
-        errorDiv.innerHTML = `
-          <h2>⚠️ Data File Missing</h2>
-          <p>The splat scene file could not be loaded.</p>
-          <p style="font-size: 14px; margin-top: 10px;">To see splats, please download the demo data from:</p>
-          <p style="font-size: 12px;"><a href="https://projects.markkellogg.org/downloads/gaussian_splat_data.zip" style="color: #ffff00;">https://projects.markkellogg.org/downloads/gaussian_splat_data.zip</a></p>
-          <p style="font-size: 13px; margin-top: 5px;">Extract it to: <code style="background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 3px;">build/demo/assets/data/</code></p>
-          <p style="font-size: 13px; margin-top: 15px; color: #ffff88;">✓ You should still see the cup model and lights working.</p>
-          <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
-        `;
-        document.body.appendChild(errorDiv);
+        try {
+          // Add a timeout to handle missing files
+          const loadPromise = viewer.addSplatScene(splatScenePath, splatSceneOptions);
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Loading timeout - file may not exist')), 5000)
+          );
+          
+          await Promise.race([loadPromise, timeoutPromise]);
+          console.log('Splat scene loaded successfully');
+        } catch (error) {
+          console.error('Error loading splat scene:', error);
+          // Mark that we tried to load but failed
+          splatScenePath = false;
+          // Show error message to user
+          const errorDiv = document.createElement('div');
+          errorDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.8); color: white; padding: 20px; border-radius: 10px; text-align: center; z-index: 10000; max-width: 500px;';
+          errorDiv.innerHTML = `
+            <h2>⚠️ Data File Missing</h2>
+            <p>The splat scene file could not be loaded.</p>
+            <p style="font-size: 14px; margin-top: 10px;">To see splats, please download the demo data from:</p>
+            <p style="font-size: 12px;"><a href="https://projects.markkellogg.org/downloads/gaussian_splat_data.zip" style="color: #ffff00;">https://projects.markkellogg.org/downloads/gaussian_splat_data.zip</a></p>
+            <p style="font-size: 13px; margin-top: 5px;">Extract it to: <code style="background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 3px;">build/demo/assets/data/</code></p>
+            <p style="font-size: 13px; margin-top: 15px; color: #ffff88;">✓ You should still see the cup model and lights working.</p>
+            <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+          `;
+          document.body.appendChild(errorDiv);
+        }
+      } else if (splatScenePath !== false) {
+        // Reload the splat scene if it was loaded before
+        try {
+          await viewer.addSplatScene(splatScenePath, splatSceneOptions);
+          console.log('Splat scene reloaded successfully');
+        } catch (error) {
+          console.error('Error reloading splat scene:', error);
+        }
       }
       
       // Always start the viewer to show Three.js meshes even without splat data
       viewer.start();
     }
     
-    function recreateViewer() {
+    async function recreateViewer() {
       if (viewer) {
-        viewer.dispose().then(() => {
-          init();
-        });
+        await viewer.dispose();
+        await init();
       }
     }
 
     // Toggle shadow state
-    function toggleShadows() {
+    async function toggleShadows() {
       shadowsEnabled = !shadowsEnabled;
       document.getElementById('shadowStatus').textContent = shadowsEnabled ? 'YES' : 'NO';
       document.getElementById('toggleShadows').textContent = shadowsEnabled ? 'Disable Shadows' : 'Enable Shadows';
 
       // Recreate viewer with new settings
-      recreateViewer();
+      await recreateViewer();
     }
 
-    function togglePCSS() {
+    async function togglePCSS() {
+      if (!shadowsEnabled) {
+        alert('Please enable shadows first before enabling PCSS!');
+        return;
+      }
+      
       pcssEnabled = !pcssEnabled;
       document.getElementById('pcssStatus').textContent = pcssEnabled ? 'YES' : 'NO';
       document.getElementById('togglePCSS').textContent = pcssEnabled ? 'Disable PCSS' : 'Enable PCSS';
 
       // Recreate viewer with new settings
-      recreateViewer();
+      await recreateViewer();
     }
 
     // Setup event listeners
