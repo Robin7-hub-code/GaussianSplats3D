@@ -5,13 +5,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <title>3D Gaussian Splats - Shadow Mapping Test</title>
+  <title>3D Gaussian Splats - Shadow Mapping Test with GUI</title>
   <script type="text/javascript" src="js/util.js"></script>
   <script type="importmap">
     {
         "imports": {
             "three": "./lib/three.module.js",
-            "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js"
+            "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js",
+            "three/addons/": "./lib/"
         }
     }
   </script>
@@ -71,41 +72,169 @@
     <button id="toggleShadows">Enable Shadows</button>
     <button id="togglePCSS">Enable PCSS</button>
     <p style="font-size: 11px; margin-top: 10px;">
-      This demo tests shadow mapping on splats. Mesh objects should cast shadows onto the splats.
+      Use the GUI controls to adjust shadow light direction, and cup position/scale. The DirectionalLight follows the shadow light direction.
     </p>
   </div>
 
   <script type="module">
     import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
     import * as THREE from 'three';
+    import { OBJLoader } from 'three/addons/OBJLoader.js';
+    import { GUI } from 'three/addons/lil-gui.module.min.js';
 
     let viewer;
     let shadowsEnabled = false;
     let pcssEnabled = false;
+    let cupMesh = null;
+    let directionalLight = null;
+    let gui = null;
+    
+    // Shadow light parameters
+    const shadowParams = {
+      lightDirX: 0.5,
+      lightDirY: -1.0,
+      lightDirZ: 0.5
+    };
+    
+    // Cup parameters
+    const cupParams = {
+      posX: 0,
+      posY: 1.5,
+      posZ: 0,
+      scale: 1.0
+    };
 
     function setupThreeScene() {
       const threeScene = new THREE.Scene();
+      
+      // Add ambient light for overall illumination
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+      threeScene.add(ambientLight);
+      
+      // Add directional light that matches shadow light direction
+      directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      updateDirectionalLight();
+      threeScene.add(directionalLight);
 
-      // Add a simple cube that will cast shadows
-      const boxGeometry = new THREE.BoxGeometry(2, 2, 2);
-      const boxMaterial = new THREE.MeshBasicMaterial({color: 0xff8844});
-      const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-      threeScene.add(boxMesh);
-      boxMesh.position.set(0, 3, 0);
-
-      // Add another mesh
-      const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-      const sphereMaterial = new THREE.MeshBasicMaterial({color: 0x4488ff});
-      const sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
-      threeScene.add(sphereMesh);
-      sphereMesh.position.set(3, 2, 1);
+      // Load the cup OBJ model
+      const objLoader = new OBJLoader();
+      objLoader.load(
+        getRootPath() + 'assets/obj/cup.obj',
+        function(object) {
+          // Set up material with proper lighting support
+          object.traverse(function(child) {
+            if (child.isMesh) {
+              // Use MeshStandardMaterial for realistic lighting
+              child.material = new THREE.MeshStandardMaterial({
+                color: 0xff6644,
+                roughness: 0.5,
+                metalness: 0.2
+              });
+            }
+          });
+          
+          cupMesh = object;
+          updateCupTransform();
+          threeScene.add(cupMesh);
+          console.log('Cup OBJ loaded successfully');
+        },
+        function(xhr) {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function(error) {
+          console.error('Error loading OBJ:', error);
+          // Create a fallback cube if OBJ fails to load
+          const fallbackGeometry = new THREE.BoxGeometry(1, 2, 1);
+          const fallbackMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff6644,
+            roughness: 0.5,
+            metalness: 0.2
+          });
+          cupMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+          updateCupTransform();
+          threeScene.add(cupMesh);
+          console.log('Using fallback cube geometry');
+        }
+      );
 
       return threeScene;
+    }
+    
+    function updateDirectionalLight() {
+      if (directionalLight) {
+        // Normalize the direction vector
+        const length = Math.sqrt(
+          shadowParams.lightDirX * shadowParams.lightDirX +
+          shadowParams.lightDirY * shadowParams.lightDirY +
+          shadowParams.lightDirZ * shadowParams.lightDirZ
+        );
+        directionalLight.position.set(
+          -shadowParams.lightDirX / length * 10,
+          -shadowParams.lightDirY / length * 10,
+          -shadowParams.lightDirZ / length * 10
+        );
+        directionalLight.lookAt(0, 0, 0);
+      }
+    }
+    
+    function updateCupTransform() {
+      if (cupMesh) {
+        cupMesh.position.set(cupParams.posX, cupParams.posY, cupParams.posZ);
+        cupMesh.scale.set(cupParams.scale, cupParams.scale, cupParams.scale);
+      }
+    }
+    
+    function createGUI() {
+      if (gui) gui.destroy();
+      
+      gui = new GUI();
+      gui.title('Shadow & Cup Controls');
+      
+      // Shadow Light Direction folder
+      const lightFolder = gui.addFolder('Shadow Light Direction');
+      lightFolder.add(shadowParams, 'lightDirX', -2, 2, 0.1)
+        .name('Direction X')
+        .onChange(() => {
+          updateDirectionalLight();
+          recreateViewer();
+        });
+      lightFolder.add(shadowParams, 'lightDirY', -2, 2, 0.1)
+        .name('Direction Y')
+        .onChange(() => {
+          updateDirectionalLight();
+          recreateViewer();
+        });
+      lightFolder.add(shadowParams, 'lightDirZ', -2, 2, 0.1)
+        .name('Direction Z')
+        .onChange(() => {
+          updateDirectionalLight();
+          recreateViewer();
+        });
+      lightFolder.open();
+      
+      // Cup Transform folder
+      const cupFolder = gui.addFolder('Cup Transform');
+      cupFolder.add(cupParams, 'posX', -5, 5, 0.1)
+        .name('Position X')
+        .onChange(updateCupTransform);
+      cupFolder.add(cupParams, 'posY', -5, 5, 0.1)
+        .name('Position Y')
+        .onChange(updateCupTransform);
+      cupFolder.add(cupParams, 'posZ', -5, 5, 0.1)
+        .name('Position Z')
+        .onChange(updateCupTransform);
+      cupFolder.add(cupParams, 'scale', 0.1, 3, 0.1)
+        .name('Scale')
+        .onChange(updateCupTransform);
+      cupFolder.open();
     }
 
     async function init() {
       // Create the THREE.js scene with meshes
       const threeScene = setupThreeScene();
+
+      // Create GUI controls
+      createGUI();
 
       // Create viewer with shadow mapping enabled
       viewer = new GaussianSplats3D.Viewer({
@@ -117,7 +246,7 @@
         'enablePCSSOnSplats': pcssEnabled,
         'shadowMapResolution': 1024,
         'shadowBias': 0.0005,
-        'shadowLightDirection': [0.5, -1.0, 0.5],
+        'shadowLightDirection': [shadowParams.lightDirX, shadowParams.lightDirY, shadowParams.lightDirZ],
         'shadowOrthoSize': 10,
         'shadowNearFar': [0.1, 50],
         'shadowLightRadius': 0.02
@@ -151,7 +280,7 @@
           <p style="font-size: 14px; margin-top: 10px;">To see splats, please download the demo data from:</p>
           <p style="font-size: 12px;"><a href="https://projects.markkellogg.org/downloads/gaussian_splat_data.zip" style="color: #ffff00;">https://projects.markkellogg.org/downloads/gaussian_splat_data.zip</a></p>
           <p style="font-size: 13px; margin-top: 5px;">Extract it to: <code style="background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 3px;">build/demo/assets/data/</code></p>
-          <p style="font-size: 13px; margin-top: 15px; color: #ffff88;">✓ You should still see the Three.js meshes (orange cube and blue sphere) below.</p>
+          <p style="font-size: 13px; margin-top: 15px; color: #ffff88;">✓ You should still see the cup model and lights working.</p>
           <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
         `;
         document.body.appendChild(errorDiv);
@@ -159,6 +288,14 @@
       
       // Always start the viewer to show Three.js meshes even without splat data
       viewer.start();
+    }
+    
+    function recreateViewer() {
+      if (viewer) {
+        viewer.dispose().then(() => {
+          init();
+        });
+      }
     }
 
     // Toggle shadow state
@@ -168,13 +305,7 @@
       document.getElementById('toggleShadows').textContent = shadowsEnabled ? 'Disable Shadows' : 'Enable Shadows';
 
       // Recreate viewer with new settings
-      if (viewer) {
-        viewer.dispose().then(() => {
-          init();
-        });
-      } else {
-        init();
-      }
+      recreateViewer();
     }
 
     function togglePCSS() {
@@ -183,13 +314,7 @@
       document.getElementById('togglePCSS').textContent = pcssEnabled ? 'Disable PCSS' : 'Enable PCSS';
 
       // Recreate viewer with new settings
-      if (viewer) {
-        viewer.dispose().then(() => {
-          init();
-        });
-      } else {
-        init();
-      }
+      recreateViewer();
     }
 
     // Setup event listeners
