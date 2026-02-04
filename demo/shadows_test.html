@@ -131,6 +131,28 @@
         详细说明请查看: <strong>SHADOW_MAP_UPDATE.md</strong>
       </p>
     </div>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">⚙️ Shadow Bias Control:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>问题 (Problem):</strong> Splat 被错误遮挡？<br>
+        <strong>解决 (Solution):</strong> <span style="color: #4CAF50;">调整 Shadow Bias！</span>
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>Shadow Bias 作用:</strong><br>
+        🔹 <strong>太小</strong> → 自阴影问题 (shadow acne)<br>
+        🔹 <strong>太大</strong> → 阴影分离 (Peter Panning)<br>
+        🔹 <strong>合适</strong> → 正确的阴影！✨
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>调整方法:</strong><br>
+        在 GUI 中调整 "Shadow Bias" 滑块 (0.0001 - 0.01)<br>
+        默认值: 0.002（已优化）
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        <strong>If splats show incorrect shadows:</strong><br>
+        Adjust "Shadow Bias" in GUI. Higher values reduce false shadows.
+      </p>
+    </div>
   </div>
 
   <script type="module">
@@ -153,7 +175,8 @@
     const shadowParams = {
       lightDirX: 0.5,
       lightDirY: -1.0,
-      lightDirZ: 0.5
+      lightDirZ: 0.5,
+      shadowBias: 0.002  // Increased from 0.0005 to reduce incorrect shadows
     };
     
     // Cup parameters
@@ -318,6 +341,17 @@
           updateDirectionalLight();
           // Shadow map will automatically update on next frame!
         });
+      
+      // Add shadow bias control
+      lightFolder.add(shadowParams, 'shadowBias', 0.0001, 0.01, 0.0001)
+        .name('Shadow Bias')
+        .onChange(() => {
+          if (viewer) {
+            viewer.shadowBias = shadowParams.shadowBias;
+            console.log('Shadow Bias updated to:', shadowParams.shadowBias);
+          }
+        });
+      
       lightFolder.open();
       
       // Cup Transform folder
@@ -353,7 +387,7 @@
         'enableShadowsOnSplats': shadowsEnabled,
         'enablePCSSOnSplats': pcssEnabled,
         'shadowMapResolution': 1024,
-        'shadowBias': 0.0005,
+        'shadowBias': shadowParams.shadowBias,  // Use the adjustable bias value
         'shadowLightDirection': [shadowParams.lightDirX, shadowParams.lightDirY, shadowParams.lightDirZ],
         'shadowOrthoSize': 15,  // Increased to cover larger area when cup moves
         'shadowNearFar': [0.1, 50],
