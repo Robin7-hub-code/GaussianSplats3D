@@ -76,11 +76,10 @@ export class ShadowShaders {
                         vec2 offset = vec2(float(x), float(y)) * texelSize;
                         float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
                         // Shadow depth comparison:
-                        // If currentDepth < shadowMapDepth: fragment is CLOSER to light (not occluded) → should be LIT
-                        // If currentDepth >= shadowMapDepth: fragment is FARTHER from light (occluded) → should be in SHADOW
-                        // However, we return the OPPOSITE because our final mix() is inverted
+                        // If currentDepth > shadowMapDepth: fragment is FARTHER from light (occluded) → should be in SHADOW
+                        // If currentDepth <= shadowMapDepth: fragment is CLOSER to light (not occluded) → should be LIT
                         // When we return 1.0, it means "shadow", when we return 0.0, it means "lit"
-                        shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
+                        shadow += (currentDepth + bias) > pcfDepth ? 1.0 : 0.0;
                     }
                 }
                 shadow /= 9.0;
@@ -168,11 +167,10 @@ export class ShadowShaders {
                     
                     float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
                     // Shadow depth comparison:
-                    // If currentDepth < shadowMapDepth: fragment is CLOSER to light (not occluded) → should be LIT
-                    // If currentDepth >= shadowMapDepth: fragment is FARTHER from light (occluded) → should be in SHADOW
-                    // However, we return the OPPOSITE because our final mix() is inverted
+                    // If currentDepth > shadowMapDepth: fragment is FARTHER from light (occluded) → should be in SHADOW
+                    // If currentDepth <= shadowMapDepth: fragment is CLOSER to light (not occluded) → should be LIT
                     // When we return 1.0, it means "shadow", when we return 0.0, it means "lit"
-                    shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
+                    shadow += (currentDepth + bias) > pcfDepth ? 1.0 : 0.0;
                 }
                 shadow /= float(pcfSamples);
                 
