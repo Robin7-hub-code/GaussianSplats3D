@@ -41,6 +41,7 @@ export class ShadowShaders {
             uniform float shadowLightRadius;
             uniform int enablePCSS;
             uniform int enableShadows;
+            uniform vec3 shadowLightDirection;
             varying vec4 vShadowCoord;
         `;
     }
@@ -199,6 +200,31 @@ export class ShadowShaders {
             } else {
                 shadowFactor = getPCFShadow(shadowMap, vShadowCoord, shadowMapSize, shadowBias);
             }
+        `;
+    }
+
+    /**
+     * Get the lighting calculation snippet to apply directional light with shadows
+     * This should be called after shadowFactor is calculated
+     * @return {string} GLSL code snippet
+     */
+    static getFragmentShaderLightingCalc() {
+        return `
+            // Apply directional lighting to the splat
+            // Ambient component (base lighting, always present)
+            vec3 ambientColor = color * 0.4;
+            
+            // Diffuse component (directional lighting)
+            // Note: For splats, we use view direction as a simple approximation of normal
+            vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));  // Camera looking down -Z
+            vec3 lightDir = normalize(-shadowLightDirection);  // Light direction (inverted)
+            float diffuse = max(dot(viewDir, lightDir), 0.0) * 0.6;
+            
+            // Combine ambient and diffuse
+            vec3 litColor = ambientColor + color * diffuse;
+            
+            // Apply shadow: blend between lit color and ambient-only in shadow
+            color = mix(ambientColor, litColor, shadowFactor);
         `;
     }
 }

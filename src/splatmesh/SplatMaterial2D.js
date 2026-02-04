@@ -391,13 +391,12 @@ export class SplatMaterial2D {
                 float w = alpha * T;
                 vec3 color = vColor.rgb;
 
-                // Apply shadow mapping if enabled
+                // Apply shadow mapping and directional lighting if enabled
                 if (enableShadows == 1) {
         `;
         fragmentShaderSource += ShadowShaders.getFragmentShaderShadowCalc();
+        fragmentShaderSource += ShadowShaders.getFragmentShaderLightingCalc();
         fragmentShaderSource += `
-                    // Darken the splat based on shadow factor
-                    color = color * mix(0.3, 1.0, shadowFactor);
                 }
 
                 gl_FragColor = vec4(color, w);
