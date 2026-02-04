@@ -110,6 +110,27 @@
         详细说明请查看: <strong>SHADOW_MAP_CALCULATION.md</strong>
       </p>
     </div>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">🔄 Shadow Map Updates:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>问题 (Question):</strong> 光源方向改变时会重新计算shadowmap吗？<br>
+        <strong>回答 (Answer):</strong> <span style="color: #4CAF50;">是的！每一帧都重新计算！</span>
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>更新频率 (Update Frequency):</strong><br>
+        ⚡ <strong>每帧自动更新</strong>（通常 60 FPS）<br>
+        ✅ 光照方向改变 → 立即生效<br>
+        ✅ 物体移动 → 阴影自动跟随<br>
+        ✅ 无需手动触发更新
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        <strong>Yes! Recalculated every frame!</strong><br>
+        Shadow map updates automatically at ~60 FPS. Light direction changes take effect immediately.
+      </p>
+      <p style="font-size: 10px; margin: 5px 0; color: #888;">
+        详细说明请查看: <strong>SHADOW_MAP_UPDATE.md</strong>
+      </p>
+    </div>
   </div>
 
   <script type="module">
@@ -250,6 +271,16 @@
         directionalLight.lookAt(0, 0, 0);
       }
       
+      // Update the viewer's shadow light direction
+      // This will automatically update the shadow map on the next frame!
+      if (viewer && viewer.shadowLightDirection) {
+        viewer.shadowLightDirection.set(
+          shadowParams.lightDirX,
+          shadowParams.lightDirY,
+          shadowParams.lightDirZ
+        ).normalize();
+      }
+      
       // Update the light direction helper arrow
       updateLightDirectionHelper();
     }
@@ -271,21 +302,21 @@
       const lightFolder = gui.addFolder('Shadow Light Direction');
       lightFolder.add(shadowParams, 'lightDirX', -2, 2, 0.1)
         .name('Direction X')
-        .onChange(async () => {
+        .onChange(() => {
           updateDirectionalLight();
-          await recreateViewer();
+          // Shadow map will automatically update on next frame!
         });
       lightFolder.add(shadowParams, 'lightDirY', -2, 2, 0.1)
         .name('Direction Y')
-        .onChange(async () => {
+        .onChange(() => {
           updateDirectionalLight();
-          await recreateViewer();
+          // Shadow map will automatically update on next frame!
         });
       lightFolder.add(shadowParams, 'lightDirZ', -2, 2, 0.1)
         .name('Direction Z')
-        .onChange(async () => {
+        .onChange(() => {
           updateDirectionalLight();
-          await recreateViewer();
+          // Shadow map will automatically update on next frame!
         });
       lightFolder.open();
       
