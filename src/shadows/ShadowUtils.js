@@ -59,8 +59,9 @@ export class ShadowUtils {
         // Normalize light direction
         const dir = new THREE.Vector3(lightDirection[0], lightDirection[1], lightDirection[2]).normalize();
 
-        // Position camera opposite to light direction
-        const lightPos = new THREE.Vector3().copy(sceneCenter).addScaledVector(dir, -distance);
+        // Position camera at light source location (in the direction of light)
+        // lightDirection represents where light comes FROM, so camera should be there
+        const lightPos = new THREE.Vector3().copy(sceneCenter).addScaledVector(dir, distance);
 
         // Look at scene center
         camera.position.copy(lightPos);
