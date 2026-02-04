@@ -499,10 +499,35 @@ export class Viewer {
     updateShadowCamera() {
         if (!this.enableShadowsOnSplats || !this.shadowCamera) return;
 
-        // Get scene center from splat mesh
+        // Calculate scene center considering both THREE.js objects and splats
         const sceneCenter = new THREE.Vector3();
-        if (this.splatMesh && this.splatMesh.getSplatCount() > 0) {
-            this.splatMesh.getSplatCenter(0, sceneCenter, false);
+        
+        // Start with THREE.js scene bounding box if available
+        if (this.threeScene && this.threeScene.children.length > 0) {
+            const box = new THREE.Box3();
+            
+            // Calculate bounding box of all meshes in threeScene
+            this.threeScene.traverse((object) => {
+                if (object.isMesh && object !== this.splatMesh) {
+                    // Create a box for this object
+                    const objectBox = new THREE.Box3().setFromObject(object);
+                    box.union(objectBox);
+                }
+            });
+            
+            // If we found meshes, use the center of their bounding box
+            if (!box.isEmpty()) {
+                box.getCenter(sceneCenter);
+            }
+        }
+        
+        // If no THREE.js objects or as a fallback, include splat mesh center
+        if (sceneCenter.length() === 0 && this.splatMesh && this.splatMesh.getSplatCount() > 0) {
+            // Use the geometric center of the splat mesh
+            // Instead of just first splat, calculate from bounds
+            const splatCenter = new THREE.Vector3();
+            this.splatMesh.getSplatCenter(0, splatCenter, false);
+            sceneCenter.copy(splatCenter);
         }
 
         // Update shadow camera transform
