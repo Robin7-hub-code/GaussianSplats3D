@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SplatMaterial } from './SplatMaterial.js';
+import { ShadowShaders } from '../shadows/ShadowShaders.js';
 
 export class SplatMaterial2D {
 
@@ -23,6 +24,10 @@ export class SplatMaterial2D {
             varying mat3 vT;
             varying vec2 vQuadCenter;
             varying vec2 vFragCoord;
+            
+            // Shadow mapping
+            uniform mat4 shadowMatrixWorldToLight;
+            varying vec4 vShadowCoord;
         `;
 
         let vertexShaderSource = SplatMaterial.buildVertexShaderBase(dynamicMode, enableOptionalEffects,
@@ -40,6 +45,40 @@ export class SplatMaterial2D {
         uniforms['scaleRotationsTextureSize'] = {
             'type': 'v2',
             'value': new THREE.Vector2(1024, 1024)
+        };
+
+        // Add shadow uniforms
+        uniforms['shadowMap'] = {
+            'type': 't',
+            'value': null
+        };
+        uniforms['shadowMatrixWorldToLight'] = {
+            'type': 'm4',
+            'value': new THREE.Matrix4()
+        };
+        uniforms['shadowMapSize'] = {
+            'type': 'v2',
+            'value': new THREE.Vector2(1024, 1024)
+        };
+        uniforms['shadowBias'] = {
+            'type': 'f',
+            'value': 0.001
+        };
+        uniforms['shadowNearFar'] = {
+            'type': 'v2',
+            'value': new THREE.Vector2(0.1, 50)
+        };
+        uniforms['shadowLightRadius'] = {
+            'type': 'f',
+            'value': 0.01
+        };
+        uniforms['enablePCSS'] = {
+            'type': 'i',
+            'value': 0
+        };
+        uniforms['enableShadows'] = {
+            'type': 'i',
+            'value': 0
         };
 
         const material = new THREE.ShaderMaterial({
@@ -235,6 +274,12 @@ export class SplatMaterial2D {
             `;
         }
 
+        vertexShaderSource += `
+            // Calculate shadow coordinates
+            vec4 worldPos = modelMatrix * vec4(splatCenter, 1.0);
+            vShadowCoord = shadowMatrixWorldToLight * worldPos;
+        `;
+
         vertexShaderSource += SplatMaterial.getVertexShaderFadeIn();
         vertexShaderSource += `}`;
 
@@ -298,7 +343,12 @@ export class SplatMaterial2D {
             varying mat3 vT;
             varying vec2 vQuadCenter;
             varying vec2 vFragCoord;
+        `;
 
+        // Add shadow sampling functions
+        fragmentShaderSource += ShadowShaders.getFragmentShaderCode(true);
+
+        fragmentShaderSource += `
             void main () {
 
                 const float FilterInvSquare = 2.0;
@@ -339,7 +389,17 @@ export class SplatMaterial2D {
                 if (test_T < 0.0001)discard;
 
                 float w = alpha * T;
-                gl_FragColor = vec4(vColor.rgb, w);
+                vec3 color = vColor.rgb;
+
+                // Apply shadow mapping and directional lighting if enabled
+                if (enableShadows == 1) {
+        `;
+        fragmentShaderSource += ShadowShaders.getFragmentShaderShadowCalc();
+        fragmentShaderSource += ShadowShaders.getFragmentShaderLightingCalc();
+        fragmentShaderSource += `
+                }
+
+                gl_FragColor = vec4(color, w);
             }
         `;
 

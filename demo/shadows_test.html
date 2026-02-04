@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>3D Gaussian Splats - Shadow Mapping Test with GUI</title>
+  <script type="text/javascript" src="js/util.js"></script>
+  <script type="importmap">
+    {
+        "imports": {
+            "three": "./lib/three.module.js",
+            "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js",
+            "three/addons/": "./lib/"
+        }
+    }
+  </script>
+  <style>
+
+    body {
+      background-color: #222222;
+      height: 100vh;
+      margin: 0px;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
+
+    #info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 15px;
+      border-radius: 5px;
+      z-index: 1000;
+      max-width: 350px;
+    }
+
+    #info h3 {
+      margin-top: 0;
+    }
+
+    #info button {
+      margin: 5px 0;
+      padding: 8px 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    #info button:hover {
+      background-color: #45a049;
+    }
+
+    #info .status {
+      margin: 5px 0;
+      font-size: 12px;
+    }
+
+  </style>
+
+</head>
+
+<body>
+  <div id="info">
+    <h3>Shadow Mapping Test</h3>
+    <div class="status">Shadow Enabled: <span id="shadowStatus">NO</span></div>
+    <div class="status">PCSS Enabled: <span id="pcssStatus">NO</span></div>
+    <button id="toggleShadows">Enable Shadows</button>
+    <button id="togglePCSS">Enable PCSS</button>
+    <p style="font-size: 11px; margin-top: 10px;">
+      <strong>⚠️ Important:</strong> Shadows are cast FROM THREE.js meshes (cup) ONTO Gaussian Splats (3DGS objects).
+      <br><br>
+      Without splat data loaded, the shadow system is working but there are no splats to receive the shadows. 
+      Please download the demo data to see shadows on splats!
+      <br><br>
+      Use the GUI controls to adjust shadow light direction and cup position/scale. The DirectionalLight follows the shadow light direction.
+    </p>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">🟡 Yellow Arrow Explanation:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>起点 (Start Point):</strong> 场景中心 (0, 0, 0)<br>
+        <strong>终点 (End Point):</strong> 指向光源位置<br>
+        <strong>含义 (Meaning):</strong> 箭头显示光从哪个方向照射过来
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        The arrow shows the direction light comes from. It starts at scene center (0,0,0) and points toward the light source position.
+      </p>
+    </div>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">📸 Shadow Map Calculation:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>问题 (Question):</strong> Shadow map 是怎么计算的？<br>
+        <strong>回答 (Answer):</strong> <span style="color: #4CAF50;">是的！从光源方向计算！</span>
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>两遍渲染 (Two-Pass Rendering):</strong><br>
+        1️⃣ <strong>从光源视角</strong>渲染场景深度 → Shadow Map<br>
+        2️⃣ <strong>从相机视角</strong>渲染，采样Shadow Map判断阴影
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        <strong>Yes! Calculated from light direction!</strong><br>
+        Pass 1: Render depth from light's perspective → Shadow Map<br>
+        Pass 2: Render from camera, sample Shadow Map for shadows
+      </p>
+      <p style="font-size: 10px; margin: 5px 0; color: #888;">
+        详细说明请查看: <strong>SHADOW_MAP_CALCULATION.md</strong>
+      </p>
+    </div>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">🔄 Shadow Map Updates:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>问题 (Question):</strong> 光源方向改变时会重新计算shadowmap吗？<br>
+        <strong>回答 (Answer):</strong> <span style="color: #4CAF50;">是的！每一帧都重新计算！</span>
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>更新频率 (Update Frequency):</strong><br>
+        ⚡ <strong>每帧自动更新</strong>（通常 60 FPS）<br>
+        ✅ 光照方向改变 → 立即生效<br>
+        ✅ 物体移动 → 阴影自动跟随<br>
+        ✅ 无需手动触发更新
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        <strong>Yes! Recalculated every frame!</strong><br>
+        Shadow map updates automatically at ~60 FPS. Light direction changes take effect immediately.
+      </p>
+      <p style="font-size: 10px; margin: 5px 0; color: #888;">
+        详细说明请查看: <strong>SHADOW_MAP_UPDATE.md</strong>
+      </p>
+    </div>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">⚙️ Shadow Bias Control:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>问题 (Problem):</strong> Splat 被错误遮挡？<br>
+        <strong>解决 (Solution):</strong> <span style="color: #4CAF50;">调整 Shadow Bias！</span>
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>Shadow Bias 作用:</strong><br>
+        🔹 <strong>太小</strong> → 自阴影问题 (shadow acne)<br>
+        🔹 <strong>太大</strong> → 阴影分离 (Peter Panning)<br>
+        🔹 <strong>合适</strong> → 正确的阴影！✨
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>调整方法:</strong><br>
+        在 GUI 中调整 "Shadow Bias" 滑块 (0.0001 - 0.01)<br>
+        默认值: 0.002（已优化）
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        <strong>If splats show incorrect shadows:</strong><br>
+        Adjust "Shadow Bias" in GUI. Higher values reduce false shadows.
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+    import * as THREE from 'three';
+    import { OBJLoader } from 'three/addons/OBJLoader.js';
+    import { GUI } from 'three/addons/lil-gui.module.min.js';
+
+    let viewer;
+    let shadowsEnabled = false;
+    let pcssEnabled = false;
+    let cupMesh = null;
+    let directionalLight = null;
+    let lightDirectionHelper = null; // Arrow helper to visualize light direction
+    let gui = null;
+    let splatScenePath = null; // Store the splat scene path to avoid reloading
+    let splatSceneOptions = null; // Store the splat scene options
+    
+    // Shadow light parameters
+    const shadowParams = {
+      lightDirX: 0.5,
+      lightDirY: -1.0,
+      lightDirZ: 0.5,
+      shadowBias: 0.002  // Increased from 0.0005 to reduce incorrect shadows
+    };
+    
+    // Cup parameters
+    const cupParams = {
+      posX: 0,
+      posY: 1.5,
+      posZ: 0,
+      scale: 1.0
+    };
+
+    function setupThreeScene() {
+      const threeScene = new THREE.Scene();
+      
+      // Add ambient light for overall illumination
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+      threeScene.add(ambientLight);
+      
+      // Add directional light that matches shadow light direction
+      directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      updateDirectionalLight();
+      threeScene.add(directionalLight);
+      
+      // Add arrow helper to visualize light direction
+      createLightDirectionHelper(threeScene);
+
+      // Load the cup OBJ model
+      const objLoader = new OBJLoader();
+      objLoader.load(
+        getRootPath() + 'assets/obj/cup.obj',
+        function(object) {
+          // Set up material with proper lighting support
+          object.traverse(function(child) {
+            if (child.isMesh) {
+              // Use MeshStandardMaterial for realistic lighting
+              child.material = new THREE.MeshStandardMaterial({
+                color: 0xff6644,
+                roughness: 0.5,
+                metalness: 0.2
+              });
+            }
+          });
+          
+          cupMesh = object;
+          updateCupTransform();
+          threeScene.add(cupMesh);
+          console.log('Cup OBJ loaded successfully');
+        },
+        function(xhr) {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function(error) {
+          console.error('Error loading OBJ:', error);
+          // Create a fallback cube if OBJ fails to load
+          const fallbackGeometry = new THREE.BoxGeometry(1, 2, 1);
+          const fallbackMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff6644,
+            roughness: 0.5,
+            metalness: 0.2
+          });
+          cupMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+          updateCupTransform();
+          threeScene.add(cupMesh);
+          console.log('Using fallback cube geometry');
+        }
+      );
+
+      return threeScene;
+    }
+    
+    function createLightDirectionHelper(threeScene) {
+      // Create an arrow helper to visualize the light direction
+      // The arrow points in the direction of the light (where light is coming FROM)
+      const dir = new THREE.Vector3(
+        shadowParams.lightDirX,
+        shadowParams.lightDirY,
+        shadowParams.lightDirZ
+      ).normalize();
+      
+      const origin = new THREE.Vector3(0, 0, 0); // Start from scene center
+      const length = 6; // Length of the arrow
+      const color = 0xffff00; // Yellow color for visibility
+      const headLength = 0.8; // Length of arrow head
+      const headWidth = 0.5; // Width of arrow head
+      
+      lightDirectionHelper = new THREE.ArrowHelper(dir, origin, length, color, headLength, headWidth);
+      threeScene.add(lightDirectionHelper);
+    }
+    
+    function updateLightDirectionHelper() {
+      if (lightDirectionHelper) {
+        // Arrow should point TOWARD the light source (opposite of light ray direction)
+        // shadowLightDirection represents where light comes FROM (light source location)
+        // So we use the negative direction for the arrow to point toward the source
+        const dir = new THREE.Vector3(
+          -shadowParams.lightDirX,
+          -shadowParams.lightDirY,
+          -shadowParams.lightDirZ
+        ).normalize();
+        
+        lightDirectionHelper.setDirection(dir);
+      }
+    }
+    
+    function updateDirectionalLight() {
+      if (directionalLight) {
+        // Normalize the direction vector
+        const length = Math.sqrt(
+          shadowParams.lightDirX * shadowParams.lightDirX +
+          shadowParams.lightDirY * shadowParams.lightDirY +
+          shadowParams.lightDirZ * shadowParams.lightDirZ
+        );
+        // Position DirectionalLight in the same direction as shadow camera
+        // Both should be at the light source location
+        directionalLight.position.set(
+          shadowParams.lightDirX / length * 10,
+          shadowParams.lightDirY / length * 10,
+          shadowParams.lightDirZ / length * 10
+        );
+        directionalLight.lookAt(0, 0, 0);
+      }
+      
+      // Update the viewer's shadow light direction
+      // This will automatically update the shadow map on the next frame!
+      if (viewer && viewer.shadowLightDirection) {
+        viewer.shadowLightDirection.set(
+          shadowParams.lightDirX,
+          shadowParams.lightDirY,
+          shadowParams.lightDirZ
+        ).normalize();
+      }
+      
+      // Update the light direction helper arrow
+      updateLightDirectionHelper();
+    }
+    
+    function updateCupTransform() {
+      if (cupMesh) {
+        cupMesh.position.set(cupParams.posX, cupParams.posY, cupParams.posZ);
+        cupMesh.scale.set(cupParams.scale, cupParams.scale, cupParams.scale);
+      }
+    }
+    
+    function createGUI() {
+      if (gui) gui.destroy();
+      
+      gui = new GUI();
+      gui.title('Shadow & Cup Controls');
+      
+      // Shadow Light Direction folder
+      const lightFolder = gui.addFolder('Shadow Light Direction');
+      lightFolder.add(shadowParams, 'lightDirX', -2, 2, 0.1)
+        .name('Direction X')
+        .onChange(() => {
+          updateDirectionalLight();
+          // Shadow map will automatically update on next frame!
+        });
+      lightFolder.add(shadowParams, 'lightDirY', -2, 2, 0.1)
+        .name('Direction Y')
+        .onChange(() => {
+          updateDirectionalLight();
+          // Shadow map will automatically update on next frame!
+        });
+      lightFolder.add(shadowParams, 'lightDirZ', -2, 2, 0.1)
+        .name('Direction Z')
+        .onChange(() => {
+          updateDirectionalLight();
+          // Shadow map will automatically update on next frame!
+        });
+      
+      // Add shadow bias control
+      lightFolder.add(shadowParams, 'shadowBias', 0.0001, 0.01, 0.0001)
+        .name('Shadow Bias')
+        .onChange(() => {
+          if (viewer) {
+            viewer.shadowBias = shadowParams.shadowBias;
+            console.log('Shadow Bias updated to:', shadowParams.shadowBias);
+          }
+        });
+      
+      lightFolder.open();
+      
+      // Cup Transform folder
+      const cupFolder = gui.addFolder('Cup Transform');
+      cupFolder.add(cupParams, 'posX', -5, 5, 0.1)
+        .name('Position X')
+        .onChange(updateCupTransform);
+      cupFolder.add(cupParams, 'posY', -5, 5, 0.1)
+        .name('Position Y')
+        .onChange(updateCupTransform);
+      cupFolder.add(cupParams, 'posZ', -5, 5, 0.1)
+        .name('Position Z')
+        .onChange(updateCupTransform);
+      cupFolder.add(cupParams, 'scale', 0.1, 3, 0.1)
+        .name('Scale')
+        .onChange(updateCupTransform);
+      cupFolder.open();
+    }
+
+    async function init() {
+      // Create the THREE.js scene with meshes
+      const threeScene = setupThreeScene();
+
+      // Create GUI controls
+      createGUI();
+
+      // Create viewer with shadow mapping enabled
+      viewer = new GaussianSplats3D.Viewer({
+        'cameraUp': [0, -1, 0],
+        'initialCameraPosition': [-1, -5, 6],
+        'initialCameraLookAt': [0, 0, 0],
+        'threeScene': threeScene,
+        'enableShadowsOnSplats': shadowsEnabled,
+        'enablePCSSOnSplats': pcssEnabled,
+        'shadowMapResolution': 1024,
+        'shadowBias': shadowParams.shadowBias,  // Use the adjustable bias value
+        'shadowLightDirection': [shadowParams.lightDirX, shadowParams.lightDirY, shadowParams.lightDirZ],
+        'shadowOrthoSize': 15,  // Increased to cover larger area when cup moves
+        'shadowNearFar': [0.1, 50],
+        'shadowLightRadius': 0.15  // Increased for more visible PCSS effect
+      });
+
+      // Try to load a splat scene with timeout (only on first init)
+      if (splatScenePath === null) {
+        splatScenePath = getRootPath() + 'assets/data/bonsai/bonsai-7k.ksplat';
+        splatSceneOptions = {
+          'position': [0, 0, 0],
+          'rotation': [0, 0, 0, 1],
+          'scale': [1.5, 1.5, 1.5]
+        };
+        
+        try {
+          // Add a timeout to handle missing files
+          const loadPromise = viewer.addSplatScene(splatScenePath, splatSceneOptions);
+          
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Loading timeout - file may not exist')), 5000)
+          );
+          
+          await Promise.race([loadPromise, timeoutPromise]);
+          console.log('Splat scene loaded successfully');
+        } catch (error) {
+          console.error('Error loading splat scene:', error);
+          // Mark that we tried to load but failed
+          splatScenePath = false;
+          // Show error message to user
+          const errorDiv = document.createElement('div');
+          errorDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.8); color: white; padding: 20px; border-radius: 10px; text-align: center; z-index: 10000; max-width: 500px;';
+          errorDiv.innerHTML = `
+            <h2>⚠️ Data File Missing</h2>
+            <p>The splat scene file could not be loaded.</p>
+            <p style="font-size: 14px; margin-top: 10px;">To see splats, please download the demo data from:</p>
+            <p style="font-size: 12px;"><a href="https://projects.markkellogg.org/downloads/gaussian_splat_data.zip" style="color: #ffff00;">https://projects.markkellogg.org/downloads/gaussian_splat_data.zip</a></p>
+            <p style="font-size: 13px; margin-top: 5px;">Extract it to: <code style="background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 3px;">build/demo/assets/data/</code></p>
+            <p style="font-size: 13px; margin-top: 15px; color: #ffff88;">✓ You should still see the cup model and lights working.</p>
+            <button onclick="this.parentElement.remove()" style="margin-top: 15px; padding: 8px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+          `;
+          document.body.appendChild(errorDiv);
+        }
+      } else if (splatScenePath !== false) {
+        // Reload the splat scene if it was loaded before
+        try {
+          await viewer.addSplatScene(splatScenePath, splatSceneOptions);
+          console.log('Splat scene reloaded successfully');
+        } catch (error) {
+          console.error('Error reloading splat scene:', error);
+        }
+      }
+      
+      // Always start the viewer to show Three.js meshes even without splat data
+      viewer.start();
+    }
+    
+    async function recreateViewer() {
+      if (viewer) {
+        await viewer.dispose();
+        await init();
+      }
+    }
+
+    // Toggle shadow state
+    async function toggleShadows() {
+      shadowsEnabled = !shadowsEnabled;
+      document.getElementById('shadowStatus').textContent = shadowsEnabled ? 'YES' : 'NO';
+      document.getElementById('toggleShadows').textContent = shadowsEnabled ? 'Disable Shadows' : 'Enable Shadows';
+
+      // Recreate viewer with new settings
+      await recreateViewer();
+    }
+
+    async function togglePCSS() {
+      if (!shadowsEnabled) {
+        alert('Please enable shadows first before enabling PCSS!');
+        return;
+      }
+      
+      pcssEnabled = !pcssEnabled;
+      document.getElementById('pcssStatus').textContent = pcssEnabled ? 'YES' : 'NO';
+      document.getElementById('togglePCSS').textContent = pcssEnabled ? 'Disable PCSS' : 'Enable PCSS';
+
+      // Recreate viewer with new settings
+      await recreateViewer();
+    }
+
+    // Setup event listeners
+    document.getElementById('toggleShadows').addEventListener('click', toggleShadows);
+    document.getElementById('togglePCSS').addEventListener('click', togglePCSS);
+
+    // Initialize the demo
+    init();
+
+  </script>
+
+</body>
+
+</html>

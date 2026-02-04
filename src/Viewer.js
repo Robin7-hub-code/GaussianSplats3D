@@ -26,6 +26,7 @@ import { RenderMode } from './RenderMode.js';
 import { LogLevel } from './LogLevel.js';
 import { SceneRevealMode } from './SceneRevealMode.js';
 import { SplatRenderMode } from './SplatRenderMode.js';
+import { ShadowUtils } from './shadows/ShadowUtils.js';
 
 const THREE_CAMERA_FOV = 50;
 const MINIMUM_DISTANCE_TO_NEW_FOCAL_POINT = .75;
@@ -209,6 +210,33 @@ export class Viewer {
         const maxPrecision = this.integerBasedSort ? 20 : 24;
         this.splatSortDistanceMapPrecision = clamp(this.splatSortDistanceMapPrecision, 10, maxPrecision);
 
+        // Shadow mapping configuration
+        // Requires WebGL2 support. When enabled, meshes in threeScene will cast shadows onto splats.
+        // enableShadowsOnSplats: Enable directional shadow mapping (default: false)
+        this.enableShadowsOnSplats = options.enableShadowsOnSplats || false;
+        // enablePCSSOnSplats: Enable PCSS (Percentage-Closer Soft Shadows) for softer shadow edges (default: false)
+        this.enablePCSSOnSplats = options.enablePCSSOnSplats || false;
+        // shadowMapResolution: Resolution of the shadow map texture (default: 1024)
+        this.shadowMapResolution = options.shadowMapResolution || 1024;
+        // shadowBias: Depth bias to prevent shadow acne (default: 0.001)
+        this.shadowBias = (options.shadowBias !== undefined) ? options.shadowBias : 0.001;
+        // shadowLightDirection: Direction vector for the directional light (default: [0.5, -1.0, 0.5])
+        if (!options.shadowLightDirection) options.shadowLightDirection = [0.5, -1.0, 0.5];
+        this.shadowLightDirection = new THREE.Vector3().fromArray(options.shadowLightDirection).normalize();
+        // shadowOrthoSize: Size of the orthographic shadow camera frustum (default: 10)
+        this.shadowOrthoSize = options.shadowOrthoSize || 10;
+        // shadowNearFar: Near and far clip planes for shadow camera (default: [0.1, 50])
+        if (!options.shadowNearFar) options.shadowNearFar = [0.1, 50];
+        this.shadowNearFar = options.shadowNearFar;
+        // shadowLightRadius: Area light radius in world units for PCSS penumbra calculation (default: 0.01)
+        this.shadowLightRadius = options.shadowLightRadius || 0.01;
+
+        // Shadow system state
+        this.shadowRenderTarget = null;
+        this.shadowCamera = null;
+        this.shadowLightViewProjMatrix = new THREE.Matrix4();
+        this.shadowsSupported = false;
+
         this.onSplatMeshChangedCallback = null;
         this.createSplatMesh();
 
@@ -368,6 +396,8 @@ export class Viewer {
             this.rootElement.appendChild(this.renderer.domElement);
         }
 
+        // Initialize shadow mapping if enabled
+        this.setupShadows();
     }
 
     setupWebXR(webXRSessionInit) {
@@ -430,6 +460,141 @@ export class Viewer {
             this.keyDownListener = this.onKeyDown.bind(this);
             window.addEventListener('keydown', this.keyDownListener, false);
         }
+    }
+
+    /**
+     * Initialize shadow mapping system.
+     * Creates shadow render target and camera if shadows are enabled.
+     * Checks for WebGL2 support and disables shadows if unavailable.
+     */
+    setupShadows() {
+        if (!this.enableShadowsOnSplats) return;
+
+        // Check WebGL2 support
+        this.shadowsSupported = ShadowUtils.isWebGL2Supported(this.renderer);
+
+        if (!this.shadowsSupported) {
+            if (this.logLevel >= LogLevel.Warn) {
+                console.warn('Shadow mapping requires WebGL2 support. Shadows will be disabled.');
+            }
+            this.enableShadowsOnSplats = false;
+            return;
+        }
+
+        // Create shadow render target
+        this.shadowRenderTarget = ShadowUtils.createShadowRenderTarget(this.shadowMapResolution);
+
+        // Create shadow camera
+        this.shadowCamera = ShadowUtils.createShadowCamera(this.shadowOrthoSize, this.shadowNearFar);
+
+        if (this.logLevel >= LogLevel.Info) {
+            console.log('Shadow mapping initialized with resolution:', this.shadowMapResolution);
+        }
+    }
+
+    /**
+     * Update shadow camera position and compute light view-projection matrix.
+     * Called each frame when shadows are enabled.
+     */
+    updateShadowCamera() {
+        if (!this.enableShadowsOnSplats || !this.shadowCamera) return;
+
+        // Calculate scene center considering both THREE.js objects and splats
+        const sceneCenter = new THREE.Vector3();
+        
+        // Start with THREE.js scene bounding box if available
+        if (this.threeScene && this.threeScene.children.length > 0) {
+            const box = new THREE.Box3();
+            
+            // Calculate bounding box of all meshes in threeScene
+            this.threeScene.traverse((object) => {
+                if (object.isMesh && object !== this.splatMesh) {
+                    // Create a box for this object
+                    const objectBox = new THREE.Box3().setFromObject(object);
+                    box.union(objectBox);
+                }
+            });
+            
+            // If we found meshes, use the center of their bounding box
+            if (!box.isEmpty()) {
+                box.getCenter(sceneCenter);
+            }
+        }
+        
+        // If no THREE.js objects or as a fallback, include splat mesh center
+        if (sceneCenter.length() === 0 && this.splatMesh && this.splatMesh.getSplatCount() > 0) {
+            // Use the geometric center of the splat mesh
+            // Instead of just first splat, calculate from bounds
+            const splatCenter = new THREE.Vector3();
+            this.splatMesh.getSplatCenter(0, splatCenter, false);
+            sceneCenter.copy(splatCenter);
+        }
+
+        // Update shadow camera transform
+        ShadowUtils.updateShadowCameraTransform(
+            this.shadowCamera,
+            [this.shadowLightDirection.x, this.shadowLightDirection.y, this.shadowLightDirection.z],
+            sceneCenter
+        );
+
+        // Compute light view-projection matrix
+        this.shadowLightViewProjMatrix = ShadowUtils.computeLightViewProjectionMatrix(this.shadowCamera);
+    }
+
+    /**
+     * Render the depth pass for shadow mapping.
+     * Renders meshes from threeScene (excluding splat mesh) into the shadow map.
+     */
+    renderShadowDepthPass() {
+        if (!this.enableShadowsOnSplats || !this.shadowCamera || !this.shadowRenderTarget) return;
+
+        // Render depth pass for meshes in threeScene (excluding splat mesh)
+        ShadowUtils.renderShadowDepthPass(
+            this.renderer,
+            this.threeScene,
+            this.shadowCamera,
+            this.shadowRenderTarget,
+            this.splatMesh
+        );
+    }
+
+    /**
+     * Update shadow-related uniforms on the splat mesh material.
+     * Sets shadow map texture, matrices, and configuration parameters.
+     */
+    updateSplatMeshShadowUniforms() {
+        if (!this.enableShadowsOnSplats || !this.splatMesh || !this.shadowRenderTarget) return;
+
+        const material = this.splatMesh.material;
+        if (!material || !material.uniforms) return;
+
+        // Update shadow-related uniforms
+        if (material.uniforms.enableShadows) {
+            material.uniforms.enableShadows.value = 1;
+        }
+        if (material.uniforms.shadowMap) {
+            material.uniforms.shadowMap.value = this.shadowRenderTarget.texture;
+        }
+        if (material.uniforms.shadowMatrixWorldToLight) {
+            material.uniforms.shadowMatrixWorldToLight.value.copy(this.shadowLightViewProjMatrix);
+        }
+        if (material.uniforms.shadowMapSize) {
+            material.uniforms.shadowMapSize.value.set(this.shadowMapResolution, this.shadowMapResolution);
+        }
+        if (material.uniforms.shadowBias) {
+            material.uniforms.shadowBias.value = this.shadowBias;
+        }
+        if (material.uniforms.shadowNearFar) {
+            material.uniforms.shadowNearFar.value.set(this.shadowNearFar[0], this.shadowNearFar[1]);
+        }
+        if (material.uniforms.shadowLightRadius) {
+            material.uniforms.shadowLightRadius.value = this.shadowLightRadius;
+        }
+        if (material.uniforms.enablePCSS) {
+            material.uniforms.enablePCSS.value = this.enablePCSSOnSplats ? 1 : 0;
+        }
+
+        material.uniformsNeedUpdate = true;
     }
 
     removeEventHandlers() {
@@ -671,6 +836,10 @@ export class Viewer {
                 this.adjustForWebXRStereo(renderDimensions);
                 this.splatMesh.updateUniforms(renderDimensions, focalLengthX * focalAdjustment, focalLengthY * focalAdjustment,
                                               this.camera.isOrthographicCamera, this.camera.zoom || 1.0, inverseFocalAdjustment);
+
+                // Update shadow camera and uniforms
+                this.updateShadowCamera();
+                this.updateSplatMeshShadowUniforms();
             }
         };
 
@@ -1489,6 +1658,14 @@ export class Viewer {
                 this.perspectiveControls = null;
             }
             this.controls = null;
+
+            // Dispose shadow resources
+            if (this.shadowRenderTarget) {
+                this.shadowRenderTarget.dispose();
+                this.shadowRenderTarget = null;
+            }
+            this.shadowCamera = null;
+
             if (this.splatMesh) {
                 this.splatMesh.dispose();
                 this.splatMesh = null;
@@ -1607,6 +1784,11 @@ export class Viewer {
                 }
                 return false;
             };
+
+            // Render shadow depth pass before main rendering
+            if (this.enableShadowsOnSplats && hasRenderables(this.threeScene)) {
+                this.renderShadowDepthPass();
+            }
 
             const savedAuoClear = this.renderer.autoClear;
             if (hasRenderables(this.threeScene)) {
