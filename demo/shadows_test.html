@@ -286,10 +286,12 @@
           shadowParams.lightDirY * shadowParams.lightDirY +
           shadowParams.lightDirZ * shadowParams.lightDirZ
         );
+        // Position DirectionalLight in the same direction as shadow camera
+        // Both should be at the light source location
         directionalLight.position.set(
-          -shadowParams.lightDirX / length * 10,
-          -shadowParams.lightDirY / length * 10,
-          -shadowParams.lightDirZ / length * 10
+          shadowParams.lightDirX / length * 10,
+          shadowParams.lightDirY / length * 10,
+          shadowParams.lightDirZ / length * 10
         );
         directionalLight.lookAt(0, 0, 0);
       }
