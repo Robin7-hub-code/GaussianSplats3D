@@ -75,8 +75,12 @@ export class ShadowShaders {
                     for(int y = -1; y <= 1; ++y) {
                         vec2 offset = vec2(float(x), float(y)) * texelSize;
                         float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
-                        // Correct comparison: if current is closer than stored depth, it's LIT (not in shadow)
-                        shadow += (currentDepth + bias) < pcfDepth ? 1.0 : 0.0;
+                        // Shadow depth comparison:
+                        // If currentDepth < shadowMapDepth: fragment is CLOSER to light (not occluded) → should be LIT
+                        // If currentDepth >= shadowMapDepth: fragment is FARTHER from light (occluded) → should be in SHADOW
+                        // However, we return the OPPOSITE because our final mix() is inverted
+                        // When we return 1.0, it means "shadow", when we return 0.0, it means "lit"
+                        shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
                     }
                 }
                 shadow /= 9.0;
@@ -163,8 +167,12 @@ export class ShadowShaders {
                     vec2 offset = vec2(cos(angle), sin(angle)) * radius * texelSize;
                     
                     float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
-                    // Correct comparison: if current is closer than stored depth, it's LIT (not in shadow)
-                    shadow += (currentDepth + bias) < pcfDepth ? 1.0 : 0.0;
+                    // Shadow depth comparison:
+                    // If currentDepth < shadowMapDepth: fragment is CLOSER to light (not occluded) → should be LIT
+                    // If currentDepth >= shadowMapDepth: fragment is FARTHER from light (occluded) → should be in SHADOW
+                    // However, we return the OPPOSITE because our final mix() is inverted
+                    // When we return 1.0, it means "shadow", when we return 0.0, it means "lit"
+                    shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
                 }
                 shadow /= float(pcfSamples);
                 
@@ -213,17 +221,17 @@ export class ShadowShaders {
     static getFragmentShaderLightingCalc() {
         return `
             // Apply shadow and lighting boost to the splat
-            // shadowFactor: 1.0 = fully lit, 0.0 = fully in shadow
+            // shadowFactor semantics: 1.0 = fully in shadow, 0.0 = fully lit
+            // (Inverted from typical convention where 1.0 = lit)
             // In shadow: darken to ambient level
             // In light: boost brightness to match THREE.js lighting
             vec3 ambientColor = color * 0.5;  // 50% ambient in shadow
             vec3 litColor = color * 1.2;      // 120% brightness when lit (matches THREE.js directional light)
             
-            // Invert shadowFactor: our depth comparison returns 1.0 for lit, but we need to handle it correctly
             // mix(a, b, t) = a * (1-t) + b * t
-            // When shadowFactor = 1.0 (lit), we want litColor
-            // When shadowFactor = 0.0 (shadow), we want ambientColor
-            color = mix(ambientColor, litColor, shadowFactor);
+            // When shadowFactor = 1.0 (shadow), we want ambientColor
+            // When shadowFactor = 0.0 (lit), we want litColor
+            color = mix(litColor, ambientColor, shadowFactor);
         `;
     }
 }
