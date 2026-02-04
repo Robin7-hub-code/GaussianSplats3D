@@ -75,7 +75,8 @@ export class ShadowShaders {
                     for(int y = -1; y <= 1; ++y) {
                         vec2 offset = vec2(float(x), float(y)) * texelSize;
                         float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
-                        shadow += (currentDepth - bias) > pcfDepth ? 0.0 : 1.0;
+                        // Inverted comparison: if current is closer than stored depth, it's in shadow
+                        shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
                     }
                 }
                 shadow /= 9.0;
@@ -107,7 +108,8 @@ export class ShadowShaders {
                     vec2 offset = vec2(cos(angle), sin(angle)) * radius * texelSize;
                     
                     float shadowDepth = texture2D(shadowMap, uv + offset).r;
-                    if (shadowDepth < receiverDepth) {
+                    // Inverted: blocker is when shadow depth is greater than receiver
+                    if (shadowDepth > receiverDepth) {
                         blockerSum += shadowDepth;
                         numBlockers += 1.0;
                     }
@@ -139,7 +141,7 @@ export class ShadowShaders {
                 
                 // Step 1: Blocker search
                 float blockerDepth = findBlockerDistance(shadowMap, projCoords.xy, 
-                                                        currentDepth - bias, lightRadius, shadowMapSize);
+                                                        currentDepth + bias, lightRadius, shadowMapSize);
                 
                 if (blockerDepth < 0.0) {
                     // No blockers found
@@ -161,7 +163,8 @@ export class ShadowShaders {
                     vec2 offset = vec2(cos(angle), sin(angle)) * radius * texelSize;
                     
                     float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
-                    shadow += (currentDepth - bias) > pcfDepth ? 0.0 : 1.0;
+                    // Inverted comparison: if current is closer than stored depth, it's in shadow
+                    shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
                 }
                 shadow /= float(pcfSamples);
                 
