@@ -90,6 +90,26 @@
         The arrow shows the direction light comes from. It starts at scene center (0,0,0) and points toward the light source position.
       </p>
     </div>
+    <div style="border-top: 1px solid #555; margin-top: 10px; padding-top: 10px;">
+      <h4 style="margin: 5px 0; font-size: 13px;">📸 Shadow Map Calculation:</h4>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>问题 (Question):</strong> Shadow map 是怎么计算的？<br>
+        <strong>回答 (Answer):</strong> <span style="color: #4CAF50;">是的！从光源方向计算！</span>
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4;">
+        <strong>两遍渲染 (Two-Pass Rendering):</strong><br>
+        1️⃣ <strong>从光源视角</strong>渲染场景深度 → Shadow Map<br>
+        2️⃣ <strong>从相机视角</strong>渲染，采样Shadow Map判断阴影
+      </p>
+      <p style="font-size: 11px; margin: 5px 0; line-height: 1.4; color: #aaa;">
+        <strong>Yes! Calculated from light direction!</strong><br>
+        Pass 1: Render depth from light's perspective → Shadow Map<br>
+        Pass 2: Render from camera, sample Shadow Map for shadows
+      </p>
+      <p style="font-size: 10px; margin: 5px 0; color: #888;">
+        详细说明请查看: <strong>SHADOW_MAP_CALCULATION.md</strong>
+      </p>
+    </div>
   </div>
 
   <script type="module">
