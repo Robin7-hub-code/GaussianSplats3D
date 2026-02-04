@@ -213,12 +213,16 @@ export class ShadowShaders {
     static getFragmentShaderLightingCalc() {
         return `
             // Apply shadow and lighting boost to the splat
+            // shadowFactor: 1.0 = fully lit, 0.0 = fully in shadow
             // In shadow: darken to ambient level
             // In light: boost brightness to match THREE.js lighting
             vec3 ambientColor = color * 0.5;  // 50% ambient in shadow
             vec3 litColor = color * 1.2;      // 120% brightness when lit (matches THREE.js directional light)
             
-            // Blend between shadow and lit based on shadowFactor
+            // Invert shadowFactor: our depth comparison returns 1.0 for lit, but we need to handle it correctly
+            // mix(a, b, t) = a * (1-t) + b * t
+            // When shadowFactor = 1.0 (lit), we want litColor
+            // When shadowFactor = 0.0 (shadow), we want ambientColor
             color = mix(ambientColor, litColor, shadowFactor);
         `;
     }

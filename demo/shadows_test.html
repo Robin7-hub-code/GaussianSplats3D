@@ -267,11 +267,13 @@
     
     function updateLightDirectionHelper() {
       if (lightDirectionHelper) {
-        // Update the arrow direction to match the shadow light direction
+        // Arrow should point TOWARD the light source (opposite of light ray direction)
+        // shadowLightDirection represents where light comes FROM (light source location)
+        // So we use the negative direction for the arrow to point toward the source
         const dir = new THREE.Vector3(
-          shadowParams.lightDirX,
-          shadowParams.lightDirY,
-          shadowParams.lightDirZ
+          -shadowParams.lightDirX,
+          -shadowParams.lightDirY,
+          -shadowParams.lightDirZ
         ).normalize();
         
         lightDirectionHelper.setDirection(dir);
