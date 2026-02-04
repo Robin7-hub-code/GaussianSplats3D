@@ -568,9 +568,6 @@ export class Viewer {
         if (material.uniforms.enablePCSS) {
             material.uniforms.enablePCSS.value = this.enablePCSSOnSplats ? 1 : 0;
         }
-        if (material.uniforms.shadowLightDirection && this.shadowLightDirection) {
-            material.uniforms.shadowLightDirection.value.copy(this.shadowLightDirection);
-        }
 
         material.uniformsNeedUpdate = true;
     }

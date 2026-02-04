@@ -41,7 +41,6 @@ export class ShadowShaders {
             uniform float shadowLightRadius;
             uniform int enablePCSS;
             uniform int enableShadows;
-            uniform vec3 shadowLightDirection;
             varying vec4 vShadowCoord;
         `;
     }
@@ -210,20 +209,13 @@ export class ShadowShaders {
      */
     static getFragmentShaderLightingCalc() {
         return `
-            // Apply directional lighting to the splat
-            // Ambient component (base lighting, always present)
-            vec3 ambientColor = color * 0.4;
+            // Apply shadow and lighting boost to the splat
+            // In shadow: darken to ambient level
+            // In light: boost brightness to match THREE.js lighting
+            vec3 ambientColor = color * 0.5;  // 50% ambient in shadow
+            vec3 litColor = color * 1.2;      // 120% brightness when lit (matches THREE.js directional light)
             
-            // Diffuse component (directional lighting)
-            // Note: For splats, we use view direction as a simple approximation of normal
-            vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));  // Camera looking down -Z
-            vec3 lightDir = normalize(-shadowLightDirection);  // Light direction (inverted)
-            float diffuse = max(dot(viewDir, lightDir), 0.0) * 0.6;
-            
-            // Combine ambient and diffuse
-            vec3 litColor = ambientColor + color * diffuse;
-            
-            // Apply shadow: blend between lit color and ambient-only in shadow
+            // Blend between shadow and lit based on shadowFactor
             color = mix(ambientColor, litColor, shadowFactor);
         `;
     }
