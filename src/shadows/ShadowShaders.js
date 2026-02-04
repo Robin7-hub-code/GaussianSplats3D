@@ -75,8 +75,8 @@ export class ShadowShaders {
                     for(int y = -1; y <= 1; ++y) {
                         vec2 offset = vec2(float(x), float(y)) * texelSize;
                         float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
-                        // Inverted comparison: if current is closer than stored depth, it's in shadow
-                        shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
+                        // Correct comparison: if current is closer than stored depth, it's LIT (not in shadow)
+                        shadow += (currentDepth + bias) < pcfDepth ? 1.0 : 0.0;
                     }
                 }
                 shadow /= 9.0;
@@ -163,8 +163,8 @@ export class ShadowShaders {
                     vec2 offset = vec2(cos(angle), sin(angle)) * radius * texelSize;
                     
                     float pcfDepth = texture2D(shadowMap, projCoords.xy + offset).r;
-                    // Inverted comparison: if current is closer than stored depth, it's in shadow
-                    shadow += (currentDepth + bias) < pcfDepth ? 0.0 : 1.0;
+                    // Correct comparison: if current is closer than stored depth, it's LIT (not in shadow)
+                    shadow += (currentDepth + bias) < pcfDepth ? 1.0 : 0.0;
                 }
                 shadow /= float(pcfSamples);
                 
